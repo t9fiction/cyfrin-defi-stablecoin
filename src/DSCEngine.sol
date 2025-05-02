@@ -44,6 +44,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 amountOfDscMinted) private s_DscMinted;
+    mapping(address => bool) private s_isCollateralTokenAllowed;
     address[] private s_collateralTokens;
 
     DecentralizedStableCoin private immutable i_dscToken;
@@ -67,7 +68,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     }
 
     modifier isAllowedCollateralToken(address _tokenCollateralAddress) {
-        if (_tokenCollateralAddress == address(0)) {
+        if (!s_isCollateralTokenAllowed[_tokenCollateralAddress]) {
             revert DSCEngine__Errors.CollateralTokenNotAllowed();
         }
         _;
@@ -91,6 +92,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         for (uint256 i = 0; i < _tokenAddresses.length; i++) {
             s_priceFeeds[_tokenAddresses[i]] = _priceFeedAddresses[i];
             s_collateralTokens.push(_tokenAddresses[i]);
+            s_isCollateralTokenAllowed[_tokenAddresses[i]] = true;
         }
 
         i_dscToken = DecentralizedStableCoin(_dscAddress);
@@ -275,5 +277,14 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         (, int256 price,,,) = priceFeed.latestRoundData();
 
         return (_usdAmountInWei * 1e18) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+    }
+
+    function getAccountInformation(address _user)
+        external
+        view
+        returns (uint256, uint256)
+    {
+        (uint256 _totalDSCMinted, uint256 _collateralValueInUSD) = _getAccountInformation(_user);
+        return (_totalDSCMinted, _collateralValueInUSD);
     }
 }

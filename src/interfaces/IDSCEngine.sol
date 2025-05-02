@@ -14,5 +14,4 @@ interface IDSCEngine {
     function mintDSC(uint256) external;
     function burnDSC(uint256) external;
     function liquidate(address, address, uint256) external;
-    // function getHealthFactor() external view;
 }
