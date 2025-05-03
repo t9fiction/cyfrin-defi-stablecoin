@@ -24,7 +24,7 @@ contract DSCEngineTest is Test {
     address public USER2 = makeAddr("user2");
     address public liquidatedUser = makeAddr("liquidatedUser");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
-    uint256 public constant AMOUNT_TO_MINT = 500e18; // 5000 DSC
+    uint256 public constant AMOUNT_TO_MINT = 500e18; // 500 DSC
     uint256 public constant MIN_HEALTH_FACTOR = 1e18; // Assuming MIN_HEALTH_FACTOR from DSCEngine
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
     uint256 public constant DSC_AMOUNT_TO_MINT = 500 ether;
@@ -37,8 +37,8 @@ contract DSCEngineTest is Test {
         (dsc, engine, config) = deployer.run();
         (ethUsdcPriceFeed, wbtcUSDCPriceFeed, weth, wbtc,) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(USER1, 10e18); // Mint 10 ETH to USER1
+        ERC20Mock(weth).mint(USER2, 10e18); // Mint WETH for USER2
     }
-    
 
     modifier depositCollateral() {
         vm.startPrank(USER1);
@@ -92,12 +92,12 @@ contract DSCEngineTest is Test {
     uint8[] public tokenDecimals = new uint8[](1);
 
     function testGetTokenAmountFromUSD() public view {
-        uint256 usdAmount = 100 ether; // 2000 USD (18 decimals)
-        uint256 expectedTokenAmount = 0.05 ether; // 1 ETH (18 decimals)
+        uint256 usdAmount = 100 ether; // 100 USD (18 decimals)
+        uint256 expectedTokenAmount = 0.05 ether; // 0.05 ETH (18 decimals)
 
         uint256 actualWETHTokenAmount = engine.getTokenAmountFromUSD(weth, usdAmount);
 
-        assertEq(actualWETHTokenAmount, expectedTokenAmount, "Token amount for 2000 USD should be 1 ETH");
+        assertEq(actualWETHTokenAmount, expectedTokenAmount, "Token amount for 100 USD should be 0.05 ETH");
     }
 
     function testRevertsIfTokenLengthDontMatchPriceFeedLength() public {
@@ -114,7 +114,7 @@ contract DSCEngineTest is Test {
     // Price Tests //
     ///////////////////////
 
-    function testGetUSDCValue() public view {
+    function testGetUSDValue() public view {
         uint256 amount = 1e18; // 1 ETH (18 decimals)
         uint256 expectedUsdValue = 2000e18; // Since mock feed returns 2000e8 and we convert it to 18 decimals
 
@@ -144,8 +144,6 @@ contract DSCEngineTest is Test {
         (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER1);
         uint256 expectedDepositAmount = engine.getTokenAmountFromUSD(weth, collateralValueInUSD);
         assertEq(totalDSCMinted, 0);
-        // 20,000,000000000000000000
-        //  5000000000000000
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount, "Collateral value in USD should be 20000 USD");
     }
 
@@ -172,7 +170,7 @@ contract DSCEngineTest is Test {
         vm.startPrank(USER1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
 
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine__Errors.BreaksHealthFactor.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine__Errors.BreaksHealthFactor.selector, 526315789473684210));
         engine.depositCollateralAndMintDSC(weth, AMOUNT_COLLATERAL, tooMuchDsc);
         vm.stopPrank();
     }
@@ -256,9 +254,6 @@ contract DSCEngineTest is Test {
     ///////////////////
 
     function testBurnDSC() public {
-        // Give USER1 some DSC tokens
-        // engine.depositCollateralAndMintDSC(weth, AMOUNT_COLLATERAL, AMOUNT_TO_MINT);
-
         vm.startPrank(USER1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateralAndMintDSC(weth, AMOUNT_COLLATERAL, AMOUNT_TO_MINT);
@@ -267,7 +262,6 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
 
         (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER1);
-
         assertEq(totalDSCMinted, 0);
         assertEq(dsc.balanceOf(USER1), 0);
     }
@@ -310,7 +304,6 @@ contract DSCEngineTest is Test {
 
     function testLiquidate() public {
         // Create a user with an unhealthy position
-        address liquidatedUser = makeAddr("liquidatedUser");
         uint256 liquidatedCollateral = 1 ether;
         uint256 liquidatedDscMinted = 1000e18; // At $2000/ETH, this is a healthy position
         setUpUserForLiquidation(liquidatedUser, liquidatedCollateral, liquidatedDscMinted);
@@ -338,14 +331,10 @@ contract DSCEngineTest is Test {
         uint256 expectedCollateralToSeize = (debtToCover * 1e18) / (1000e8 * 1e10); // Calculate using new price
         uint256 expectedBonus = (expectedCollateralToSeize * 10) / 100; // 10% bonus
         uint256 expectedTotal = expectedCollateralToSeize + expectedBonus;
-
-        // Reset price to test balance properly
-        MockV3Aggregator(ethUsdcPriceFeed).updateAnswer(2000e8);
     }
 
     function testRevertsIfHealthFactorNotImproved() public {
         // Create a user with an unhealthy position
-        address liquidatedUser = makeAddr("liquidatedUser");
         uint256 liquidatedCollateral = 1 ether;
         uint256 liquidatedDscMinted = 1000e18;
         setUpUserForLiquidation(liquidatedUser, liquidatedCollateral, liquidatedDscMinted);
@@ -358,7 +347,6 @@ contract DSCEngineTest is Test {
         uint256 debtToCover = 100e18;
 
         // Try to perform liquidation with too small amount
-        // This will not improve health factor enough
         vm.startPrank(liquidator);
         ERC20Mock(weth).mint(liquidator, 10 ether);
         dsc.mint(liquidator, debtToCover);
@@ -375,12 +363,10 @@ contract DSCEngineTest is Test {
 
     function testHealthFactorCalculation() public {
         // We'll test the internal _healthFactor function through the public interface
-
-        // First create a position
         vm.startPrank(USER1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateral(weth, AMOUNT_COLLATERAL);
-        engine.mintDSC(5000e18); // $5000 DSC with $20000 collateral (health factor should be 4)
+        engine.mintDSC(5000e18); // $5000 DSC with $20000 collateral (health factor should be 2)
         vm.stopPrank();
 
         // The health factor should be above MIN_HEALTH_FACTOR
@@ -389,18 +375,11 @@ contract DSCEngineTest is Test {
         assertEq(collateralValueInUsd, 20000e18);
 
         // Calculate expected health factor: ($20000 * 50) / ($5000 * 100) = 2
-        // Where 50 is the liquidation threshold percentage (50%) and 100 is the precision factor
-        // 2 > 1, so the position is healthy
-
-        // Now make the position unhealthy by manipulating price
         MockV3Aggregator(ethUsdcPriceFeed).updateAnswer(500e8); // Drop ETH price to $500
 
         // Recalculate collateral value
         (, uint256 newCollateralValue) = engine.getAccountInformation(USER1);
-        assertEq(newCollateralValue, 5000e18); // $5000 collateral with $5000 DSC (health factor should be 1)
-
-        // Calculate expected health factor: ($5000 * 50) / ($5000 * 100) = 0.5
-        // 0.5 < 1, so the position is unhealthy
+        assertEq(newCollateralValue, 5000e18); // $5000 collateral with $5000 DSC (health factor should be 0.5)
 
         // Drop price further to make it very unhealthy
         MockV3Aggregator(ethUsdcPriceFeed).updateAnswer(250e8); // Drop ETH price to $250
@@ -442,14 +421,102 @@ contract DSCEngineTest is Test {
     // Test Miscellaneous View Functions //
     ///////////////////////////////////
 
-    // Test removed: testGetCollateralBalanceOfUser
-    // The DSCEngine contract does not have a getCollateralBalanceOfUser function
-    // To test collateral amounts, use the ERC20 token's balanceOf or check through getAccountInformation
+    function testGetCollateralBalanceReturnsZeroForNonDepositor() public view {
+        uint256 balance = engine.getCollateralBalance(USER1, weth);
+        assertEq(balance, 0, "Balance should be 0 for user with no deposits");
+    }
 
-    // function testGetCollateralTokenPriceFeed() public {
-    //     address priceFeed = engine.getCollateralTokenPriceFeed(weth);
-    //     assertEq(priceFeed, ethUsdcPriceFeed);
-    // }
+    function testGetCollateralBalanceReturnsCorrectAmountAfterDeposit() public {
+        vm.startPrank(USER1);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        uint256 balance = engine.getCollateralBalance(USER1, weth);
+        assertEq(balance, AMOUNT_COLLATERAL, "Balance should match deposited amount");
+    }
+
+    function testGetCollateralBalanceReturnsZeroForDifferentToken() public {
+        vm.startPrank(USER1);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        uint256 balance = engine.getCollateralBalance(USER1, wbtc);
+        assertEq(balance, 0, "Balance should be 0 for token not deposited");
+    }
+
+    function testGetCollateralBalanceForDifferentUser() public {
+        vm.startPrank(USER1);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        vm.startPrank(USER2);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        uint256 balanceUser1 = engine.getCollateralBalance(USER1, weth);
+        uint256 balanceUser2 = engine.getCollateralBalance(USER2, weth);
+        assertEq(balanceUser1, AMOUNT_COLLATERAL, "USER1 balance should match deposited amount");
+        assertEq(balanceUser2, AMOUNT_COLLATERAL, "USER2 balance should match deposited amount");
+    }
+
+    function testGetCollateralTokensReturnsCorrectTokens() public view {
+        address[] memory tokens = engine.getCollateralTokens();
+        assertEq(tokens.length, 2, "Should return 2 collateral tokens");
+        assertEq(tokens[0], weth, "First token should be WETH");
+        assertEq(tokens[1], wbtc, "Second token should be WBTC");
+    }
+
+    function testGetCollateralTokensArrayLength() public view {
+        address[] memory tokens = engine.getCollateralTokens();
+        assertEq(tokens.length, 2, "Collateral tokens array should have length 2");
+    }
+
+    // New tests for getUSDValue and getTokenAmountFromUSD
+    function testGetUSDValueForWETH() public view {
+        uint256 amount = 1e18; // 1 WETH (18 decimals)
+        uint256 expectedUsdValue = 2000e18; // $2,000 (18 decimals)
+        uint256 actualUsdValue = engine.getUSDValue(weth, amount);
+        assertEq(actualUsdValue, expectedUsdValue, "USD value for 1 WETH should be 2000 USD");
+    }
+
+    function testGetUSDValueForWBTC() public view {
+        uint256 amount = 1e8; // 1 WBTC (8 decimals)
+        uint256 expectedUsdValue = 1000e18; // $1,000 (18 decimals)
+        uint256 actualUsdValue = engine.getUSDValue(wbtc, amount);
+        assertEq(actualUsdValue, expectedUsdValue, "USD value for 1 WBTC should be 1000 USD");
+    }
+
+    function testGetUSDValueForZeroAmount() public view {
+        uint256 amount = 0;
+        uint256 expectedUsdValue = 0;
+        uint256 actualUsdValue = engine.getUSDValue(weth, amount);
+        assertEq(actualUsdValue, expectedUsdValue, "USD value for 0 amount should be 0");
+    }
+
+    function testGetTokenAmountFromUSDForWETH() public view {
+        uint256 usdAmount = 2000e18; // 2,000 USD (18 decimals)
+        uint256 expectedTokenAmount = 1e18; // 1 WETH (18 decimals)
+        uint256 actualTokenAmount = engine.getTokenAmountFromUSD(weth, usdAmount);
+        assertEq(actualTokenAmount, expectedTokenAmount, "Token amount for 2000 USD should be 1 WETH");
+    }
+
+    function testGetTokenAmountFromUSDForWBTC() public view {
+        uint256 usdAmount = 1000e18; // 1,000 USD (18 decimals)
+        uint256 expectedTokenAmount = 1e8; // 1 WBTC (8 decimals)
+        uint256 actualTokenAmount = engine.getTokenAmountFromUSD(wbtc, usdAmount);
+        assertEq(actualTokenAmount, expectedTokenAmount, "Token amount for 1000 USD should be 1 WBTC");
+    }
+
+    function testGetTokenAmountFromUSDForZeroUSD() public view {
+        uint256 usdAmount = 0;
+        uint256 expectedTokenAmount = 0;
+        uint256 actualTokenAmount = engine.getTokenAmountFromUSD(weth, usdAmount);
+        assertEq(actualTokenAmount, expectedTokenAmount, "Token amount for 0 USD should be 0");
+    }
 
     ///////////////////////////////////
     // Test DecentralizedStableCoin Functions //
