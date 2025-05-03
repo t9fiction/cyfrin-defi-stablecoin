@@ -155,7 +155,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         isAllowedCollateralToken(_tokenCollateralAddress)
         nonReentrant
     {
-        _redeemCollateral(msg.sender, msg.sender, _tokenCollateralAddress, _amountCollateral);
+        _redeemCollateral(_tokenCollateralAddress, msg.sender, msg.sender, _amountCollateral);
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
@@ -184,7 +184,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         uint256 _amountCollateralToSeize = getTokenAmountFromUSD(_tokenCollateral, _debtToCover);
         uint256 _bonusCollateral = (_amountCollateralToSeize * LIQUIDATION_BONUS) / 100;
         uint256 _totalCollateralToSeize = _amountCollateralToSeize + _bonusCollateral;
-        _redeemCollateral(_user, msg.sender, _tokenCollateral, _totalCollateralToSeize);
+        _redeemCollateral(_tokenCollateral, _user, msg.sender, _totalCollateralToSeize);
         // 3. Burn the user's DSC
         _burnDSC(_user, msg.sender, _debtToCover);
         // 4. Check the user's health factor after liquidation
