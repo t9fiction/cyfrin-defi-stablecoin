@@ -44,11 +44,11 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
     uint256 private constant LIQUIDATION_BONUS = 10;
 
-    // Mapping of collateral token addresses to their corresponding price feed addresses
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 amountOfDscMinted) private s_DscMinted;
     mapping(address => bool) private s_isCollateralTokenAllowed;
+    mapping(address token => uint8 decimals) private s_tokenDecimals; // New mapping for token decimals
     address[] private s_collateralTokens;
 
     DecentralizedStableCoin private immutable i_dscToken;
@@ -78,12 +78,8 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         _;
     }
 
-    /////////////////
-    /// Functions ///
-    /////////////////
-
-    constructor(address[] memory _tokenAddresses, address[] memory _priceFeedAddresses, address _dscAddress) {
-        if (_tokenAddresses.length != _priceFeedAddresses.length) {
+    constructor(address[] memory _tokenAddresses, address[] memory _priceFeedAddresses, address _dscAddress, uint8[] memory _tokenDecimals) {
+        if (_tokenAddresses.length != _priceFeedAddresses.length || _tokenAddresses.length != _tokenDecimals.length) {
             revert DSCEngine__Errors.TokenAddressesAndPriceFeedAddressesMustBeSameLength();
         }
         if (_tokenAddresses.length == 0) {
@@ -95,6 +91,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
 
         for (uint256 i = 0; i < _tokenAddresses.length; i++) {
             s_priceFeeds[_tokenAddresses[i]] = _priceFeedAddresses[i];
+            s_tokenDecimals[_tokenAddresses[i]] = _tokenDecimals[i]; // Store decimals
             s_collateralTokens.push(_tokenAddresses[i]);
             s_isCollateralTokenAllowed[_tokenAddresses[i]] = true;
         }
@@ -115,7 +112,6 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         mintDSC(_amountDscToMint);
     }
 
-    //--------------------------------------
     function depositCollateral(address _tokenCollateralAddress, uint256 _amountCollateral)
         public
         moreThenZero(_amountCollateral)
@@ -182,10 +178,8 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         }
 
         uint256 _amountCollateralToSeize = getTokenAmountFromUSD(_tokenCollateral, _debtToCover);
-
         uint256 _bonusCollateral = (_amountCollateralToSeize * LIQUIDATION_BONUS) / 100;
         uint256 _totalCollateralToSeize = _amountCollateralToSeize + _bonusCollateral;
-        // 2. Transfer the collateral from the user to the liquidator
         _redeemCollateral(_user, msg.sender, _tokenCollateral, _totalCollateralToSeize);
         // 3. Burn the user's DSC
         _burnDSC(_user, msg.sender, _debtToCover);
@@ -225,6 +219,9 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
 
     function _healthFactor(address _user) private view returns (uint256) {
         (uint256 _totalDSCMinted, uint256 _collateralValueInUSD) = _getAccountInformation(_user);
+        if (_totalDSCMinted == 0) {
+            return type(uint256).max;
+        }
         uint256 _collateralAdjustedForThreshold = (_collateralValueInUSD * LIQUIDATION_THRESHOLD) / 100;
 
         return (_collateralAdjustedForThreshold * 1e18) / _totalDSCMinted;
@@ -263,7 +260,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     function getUSDValue(address _token, uint256 _amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[_token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-        uint8 decimals = IERC20(_token).decimals();
+        uint8 decimals = s_tokenDecimals[_token];
         uint256 normalizedAmount = _amount * (10 ** (18 - decimals));
         uint256 priceInUSDWithPrecision = (uint256(price) * ADDITIONAL_FEED_PRECISION * normalizedAmount) / 1e18;
         return priceInUSDWithPrecision;
@@ -276,11 +273,16 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
 
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[_tokenCollateral]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-
-        return (_usdAmountInWei * 1e18) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+        uint8 decimals = s_tokenDecimals[_tokenCollateral];
+        uint256 normalizedPrice = uint256(price) * (10 ** (18 - decimals));
+        return (_usdAmountInWei * 1e18) / (normalizedPrice * ADDITIONAL_FEED_PRECISION);
     }
 
-    function getAccountInformation(address _user) external view returns (uint256, uint256) {
+    function getAccountInformation(address _user)
+        external
+        view
+        returns (uint256, uint256)
+    {
         (uint256 _totalDSCMinted, uint256 _collateralValueInUSD) = _getAccountInformation(_user);
         return (_totalDSCMinted, _collateralValueInUSD);
     }
