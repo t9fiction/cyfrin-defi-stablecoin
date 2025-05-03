@@ -33,6 +33,7 @@ library DSCEngine__Errors {
     error RedeemFailed();
     error HealthFactorNotUnderThreshold(uint256 healthFactor);
     error HealthFactorNotImproved();
+    error InputAmountExceedsBalance();
 }
 
 contract DSCEngine is ReentrancyGuard, IDSCEngine {
@@ -78,7 +79,12 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         _;
     }
 
-    constructor(address[] memory _tokenAddresses, address[] memory _priceFeedAddresses, address _dscAddress, uint8[] memory _tokenDecimals) {
+    constructor(
+        address[] memory _tokenAddresses,
+        address[] memory _priceFeedAddresses,
+        address _dscAddress,
+        uint8[] memory _tokenDecimals
+    ) {
         if (_tokenAddresses.length != _priceFeedAddresses.length || _tokenAddresses.length != _tokenDecimals.length) {
             revert DSCEngine__Errors.TokenAddressesAndPriceFeedAddressesMustBeSameLength();
         }
@@ -135,24 +141,22 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         }
     }
 
+    function burnDSC(uint256 _amountDscToBurn) public moreThenZero(_amountDscToBurn) {
+        _burnDSC(msg.sender, msg.sender, _amountDscToBurn);
+        // Revert if health factor is broken, callet his after transfer and not before
+        // _revertIfHealthFactorIsBroken(msg.sender);
+    }
+
     // In order for RedeemCollateral to work
     // 1. Health factor must be over 1 after collateral pulled
     function redeemCollateral(address _tokenCollateralAddress, uint256 _amountCollateral)
         public
         moreThenZero(_amountCollateral)
+        isAllowedCollateralToken(_tokenCollateralAddress)
         nonReentrant
     {
         _redeemCollateral(msg.sender, msg.sender, _tokenCollateralAddress, _amountCollateral);
-        // Revert if health factor is broken, callet his after transfer and not before
-        // because we want to be easy on gasfees.abi
-        // calling it before would cost more gas as it will be checked always.abi
         _revertIfHealthFactorIsBroken(msg.sender);
-    }
-
-    function burnDSC(uint256 _amountDscToBurn) public moreThenZero(_amountDscToBurn) {
-        _burnDSC(msg.sender, msg.sender, _amountDscToBurn);
-        // Revert if health factor is broken, callet his after transfer and not before
-        // _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     function redeemCollateralForDSC(
@@ -209,6 +213,9 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     function _redeemCollateral(address _tokenCollateralAddress, address _to, address _from, uint256 _amountCollateral)
         private
     {
+        if (s_collateralDeposited[_from][_tokenCollateralAddress] < _amountCollateral) {
+            revert DSCEngine__Errors.InputAmountExceedsBalance();
+        }
         s_collateralDeposited[_from][_tokenCollateralAddress] -= _amountCollateral;
         emit CollateralRedeemed(_from, _to, _tokenCollateralAddress, _amountCollateral);
         bool success = IERC20(_tokenCollateralAddress).transfer(_to, _amountCollateral);
@@ -278,12 +285,16 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         return (_usdAmountInWei * 1e18) / (normalizedPrice * ADDITIONAL_FEED_PRECISION);
     }
 
-    function getAccountInformation(address _user)
-        external
-        view
-        returns (uint256, uint256)
-    {
+    function getAccountInformation(address _user) external view returns (uint256, uint256) {
         (uint256 _totalDSCMinted, uint256 _collateralValueInUSD) = _getAccountInformation(_user);
         return (_totalDSCMinted, _collateralValueInUSD);
+    }
+
+    function getCollateralBalance(address user, address token) external view returns (uint256) {
+        return s_collateralDeposited[user][token];
+    }
+
+    function getCollateralTokens() external view returns (address[] memory) {
+        return s_collateralTokens;
     }
 }
