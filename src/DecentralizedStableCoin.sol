@@ -41,7 +41,7 @@ contract DecentralizedStableCoin is ERC20Burnable, Ownable {
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
         // check if the amount to burn is less than or equal to the balance
-        if (_amount <= 0) {
+        if (_amount == 0) {
             revert DecentralizedStableCoin__Errors.MustBeGreaterThanZero();
         }
         if (balance < _amount) {

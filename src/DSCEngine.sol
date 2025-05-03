@@ -7,6 +7,10 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
+interface IERC20Decimals {
+    function decimals() external view returns (uint8);
+}
+
 /**
  * @title DSCEngine
  * @author Sohail Ishaque
@@ -152,7 +156,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     function burnDSC(uint256 _amountDscToBurn) public moreThenZero(_amountDscToBurn) {
         _burnDSC(msg.sender, msg.sender, _amountDscToBurn);
         // Revert if health factor is broken, callet his after transfer and not before
-        _revertIfHealthFactorIsBroken(msg.sender);
+        // _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     function redeemCollateralForDSC(
@@ -259,12 +263,9 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
     function getUSDValue(address _token, uint256 _amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[_token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-
-        // Convert the price to USD
-        // Assuming the price is in 8 decimal format, we need to convert it to 18 decimal format
-        // 1e10(ADDITIONAL_FEED_PRECISION) is used to convert the price to 18 decimal format
-        // uint256 priceInUSD = uint256(price) * ADDITIONAL_FEED_PRECISION;
-        uint256 priceInUSDWithPrecision = (uint256(price) * ADDITIONAL_FEED_PRECISION * _amount) / 1e18;
+        uint8 decimals = IERC20(_token).decimals();
+        uint256 normalizedAmount = _amount * (10 ** (18 - decimals));
+        uint256 priceInUSDWithPrecision = (uint256(price) * ADDITIONAL_FEED_PRECISION * normalizedAmount) / 1e18;
         return priceInUSDWithPrecision;
     }
 
@@ -279,11 +280,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         return (_usdAmountInWei * 1e18) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
 
-    function getAccountInformation(address _user)
-        external
-        view
-        returns (uint256, uint256)
-    {
+    function getAccountInformation(address _user) external view returns (uint256, uint256) {
         (uint256 _totalDSCMinted, uint256 _collateralValueInUSD) = _getAccountInformation(_user);
         return (_totalDSCMinted, _collateralValueInUSD);
     }
