@@ -31,7 +31,7 @@ library DSCEngine__Errors {
     error MintFailed();
     error BreaksHealthFactor(uint256 healthFactor);
     error RedeemFailed();
-    error HealthFactorNotUnderThreshold(uint256 healthFactor);
+    error HealthFactorNotUnderThreshold();
     error HealthFactorNotImproved();
     error InputAmountExceedsBalance();
 }
@@ -178,7 +178,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         uint256 _startingUserHealthFactor = _healthFactor(_user);
         // 1. Check if the user is undercollateralized
         if (_startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
-            revert DSCEngine__Errors.HealthFactorNotUnderThreshold(_startingUserHealthFactor);
+            revert DSCEngine__Errors.HealthFactorNotUnderThreshold();
         }
 
         uint256 _amountCollateralToSeize = getTokenAmountFromUSD(_tokenCollateral, _debtToCover);
@@ -296,5 +296,9 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
 
     function getCollateralTokens() external view returns (address[] memory) {
         return s_collateralTokens;
+    }
+
+    function getHealthFactor(address _user) external view returns(uint256){
+        return _healthFactor(_user);
     }
 }
