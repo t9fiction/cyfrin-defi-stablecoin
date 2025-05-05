@@ -175,26 +175,26 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         moreThenZero(_debtToCover)
         nonReentrant
     {
-        uint256 _startingHealthFactor = _healthFactor(_user);
+        uint256 _startingUserHealthFactor = _healthFactor(_user);
         // 1. Check if the user is undercollateralized
-        if (_startingHealthFactor >= MIN_HEALTH_FACTOR) {
-            revert DSCEngine__Errors.HealthFactorNotUnderThreshold(_startingHealthFactor);
+        if (_startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert DSCEngine__Errors.HealthFactorNotUnderThreshold(_startingUserHealthFactor);
         }
 
         uint256 _amountCollateralToSeize = getTokenAmountFromUSD(_tokenCollateral, _debtToCover);
         uint256 _bonusCollateral = (_amountCollateralToSeize * LIQUIDATION_BONUS) / 100;
-        uint256 _totalCollateralToSeize = _amountCollateralToSeize + _bonusCollateral;
-        _redeemCollateral(_tokenCollateral, _user, msg.sender, _totalCollateralToSeize);
+        uint256 _totalCollateralToRedeem = _amountCollateralToSeize + _bonusCollateral;
+        _redeemCollateral(_tokenCollateral, msg.sender, _user, _totalCollateralToRedeem);
         // 3. Burn the user's DSC
         _burnDSC(_user, msg.sender, _debtToCover);
         // 4. Check the user's health factor after liquidation
-        uint256 _endingHealthFactor = _healthFactor(_user);
-        if (_endingHealthFactor >= MIN_HEALTH_FACTOR) {
+        uint256 _endingUserHealthFactor = _healthFactor(_user);
+        if (_endingUserHealthFactor <= _startingUserHealthFactor) {
             revert DSCEngine__Errors.HealthFactorNotImproved();
         }
         // 5. Emit the Liquidation event
         _revertIfHealthFactorIsBroken(_user);
-        emit CollateralLiquidated(_user, msg.sender, _tokenCollateral, _totalCollateralToSeize);
+        emit CollateralLiquidated(_user, msg.sender, _tokenCollateral, _totalCollateralToRedeem);
     }
 
     /////////////////////////////////////////
