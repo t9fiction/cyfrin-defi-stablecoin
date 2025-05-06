@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Script } from "forge-std/Script.sol";
-import { MockV3Aggregator } from "../test/mocks/MockV3Aggregator.sol";
-import { ERC20Mock } from "test/mocks/ERC20Mock.sol";
-
+import {Script} from "forge-std/Script.sol";
+import {MockV3Aggregator} from "../test/mocks/MockV3Aggregator.sol";
+import {ERC20Mock} from "test/mocks/ERC20Mock.sol";
 
 contract HelperConfig is Script {
-
     struct NetworkConfig {
         address wethUSDCPriceFeed;
         address wbtcUSDCPriceFeed;
@@ -28,7 +26,7 @@ contract HelperConfig is Script {
         }
     }
 
-    function getSepoliaEthConfig() public view returns (NetworkConfig memory){
+    function getSepoliaEthConfig() public view returns (NetworkConfig memory) {
         return NetworkConfig({
             wethUSDCPriceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306,
             wbtcUSDCPriceFeed: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43,
@@ -45,7 +43,7 @@ contract HelperConfig is Script {
         vm.startBroadcast();
         MockV3Aggregator ethUsdcPriceFeed = new MockV3Aggregator(8, 2000e8);
         MockV3Aggregator wbtcUsdcPriceFeed = new MockV3Aggregator(8, 1000e8);
-        ERC20Mock wethMock = new ERC20Mock("Wrapped Ether", "WETH", msg.sender ,200000);
+        ERC20Mock wethMock = new ERC20Mock("Wrapped Ether", "WETH", msg.sender, 200000);
         ERC20Mock wbtcMock = new ERC20Mock("Wrapped Bitcoin", "WBTC", msg.sender, 50000);
         activeNetworkConfig = NetworkConfig({
             wethUSDCPriceFeed: address(ethUsdcPriceFeed),
@@ -56,6 +54,5 @@ contract HelperConfig is Script {
         });
         vm.stopBroadcast();
         return activeNetworkConfig;
-    }    
- 
+    }
 }

@@ -298,7 +298,7 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         return s_collateralTokens;
     }
 
-    function getHealthFactor(address _user) external view returns(uint256){
+    function getHealthFactor(address _user) external view returns (uint256) {
         return _healthFactor(_user);
     }
 }
