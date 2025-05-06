@@ -188,12 +188,12 @@ contract DSCEngine is ReentrancyGuard, IDSCEngine {
         // 3. Burn the user's DSC
         _burnDSC(_user, msg.sender, _debtToCover);
         // 4. Check the user's health factor after liquidation
-        uint256 _endingUserHealthFactor = _healthFactor(_user);
+        uint256 _endingUserHealthFactor = _healthFactor(msg.sender);
         if (_endingUserHealthFactor <= _startingUserHealthFactor) {
             revert DSCEngine__Errors.HealthFactorNotImproved();
         }
         // 5. Emit the Liquidation event
-        _revertIfHealthFactorIsBroken(_user);
+        _revertIfHealthFactorIsBroken(msg.sender);
         emit CollateralLiquidated(_user, msg.sender, _tokenCollateral, _totalCollateralToRedeem);
     }
 
