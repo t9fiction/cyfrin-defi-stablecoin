@@ -390,32 +390,32 @@ contract DSCEngineTest is Test {
         require(userHealthFactor >= MIN_HEALTH_FACTOR, "Health factor should be at least 1e18 after liquidation");
     }
 
-    // function testRevertsIfHealthFactorNotImproved() public {
-    //     // Create a user with an unhealthy position
-    //     uint256 liquidatedCollateral = 1 ether;
-    //     uint256 liquidatedDscMinted = 1000e18;
-    //     setUpUserForLiquidation(liquidatedUser, liquidatedCollateral, liquidatedDscMinted);
+    function testRevertsIfHealthFactorNotImproved() public {
+        // Create a user with an unhealthy position
+        uint256 liquidatedCollateral = 1 ether;
+        uint256 liquidatedDscMinted = 1000e18;
+        setUpUserForLiquidation(liquidatedUser, liquidatedCollateral, liquidatedDscMinted);
 
-    //     // Price drops, making the position unhealthy
-    //     setPriceToCreateUnhealthyPosition();
+        // Price drops, making the position unhealthy
+        setPriceToCreateUnhealthyPosition();
 
-    //     // Prepare the liquidator
-    //     uint256 debtToCover = 100e18;
-    //     uint256 liquidatorCollateral = 10 ether;
+        // Prepare the liquidator
+        uint256 debtToCover = 100e18;
+        uint256 liquidatorCollateral = 10 ether;
 
-    //     // Liquidator deposits collateral and mints DSC
-    //     vm.startPrank(liquidator);
-    //     ERC20Mock(weth).mint(liquidator, liquidatorCollateral);
-    //     ERC20Mock(weth).approve(address(engine), liquidatorCollateral);
-    //     engine.depositCollateral(weth, liquidatorCollateral);
-    //     engine.mintDSC(debtToCover); // Mint 100 DSC through DSCEngine
-    //     dsc.approve(address(engine), debtToCover);
+        // Liquidator deposits collateral and mints DSC
+        vm.startPrank(liquidator);
+        ERC20Mock(weth).mint(liquidator, liquidatorCollateral);
+        ERC20Mock(weth).approve(address(engine), liquidatorCollateral);
+        engine.depositCollateral(weth, liquidatorCollateral);
+        engine.mintDSC(debtToCover); // Mint 100 DSC through DSCEngine
+        dsc.approve(address(engine), debtToCover);
 
-    //     // Expect liquidation to revert due to insufficient health factor improvement
-    //     vm.expectRevert(DSCEngine__Errors.HealthFactorNotImproved.selector);
-    //     engine.liquidate(weth, liquidatedUser, debtToCover);
-    //     vm.stopPrank();
-    // }
+        // Expect liquidation to revert due to insufficient health factor improvement
+        vm.expectRevert(DSCEngine__Errors.HealthFactorNotImproved.selector);
+        engine.liquidate(weth, liquidatedUser, debtToCover);
+        vm.stopPrank();
+    }
 
     ///////////////////////////////
     // Test Health Factor Calculations //
