@@ -3,7 +3,7 @@
 
 A decentralized, algorithmic stablecoin pegged to the US Dollar (USD), backed by exogenous crypto assets.
 
-> 📣 **Built with ❤️ using [Cyfrin's Updraft Program](https://www.cyfrin.io/updraft)** | 🙏 Thanks to [Patrick Collins](https://www.linkedin.com/in/patrickalphac/)
+> 📣 **Built with ❤️ using [Cyfrin's Updraft Program](https://www.cyfrin.io/updraft)** | 🙏 Thanks to [Patrick Collins](https://www.linkedin.com/in/patrickalphac/) and team
 
 ## Overview
 
