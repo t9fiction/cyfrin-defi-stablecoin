@@ -166,13 +166,6 @@ forge script script/DeployDSC.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KE
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🚀 Credits & Attribution (Cyfrin + Patrick Collins + Team)
-
-> ⚠️ This project is heavily inspired by the excellent work of **Patrick Collins** and his team at **Cyfrin** through their DeFi course and the **[Updraft Accelerator Program](https://www.cyfrin.io/updraft)**.  
->
-> 🙏 Huge thanks to **[Patrick Collins (LinkedIn)](https://www.linkedin.com/in/patrickalphac/)** and everyone at Cyfrin for their continuous efforts in educating and empowering Web3 developers.  
->
-> This repo would not exist without their open-source contributions and educational guidance.
 
 ## Acknowledgments
 
@@ -181,3 +174,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Integrates [Chainlink](https://chain.link/) price feeds
 
 
+## 🚀 Credits & Attribution (Cyfrin + Patrick Collins + Team)
+
+> ⚠️ This project is heavily inspired by the excellent work of **Patrick Collins** and his team at **Cyfrin** through their DeFi course and the **[Updraft Accelerator Program](https://www.cyfrin.io/updraft)**.  
+>
+> 🙏 Huge thanks to **[Patrick Collins (LinkedIn)](https://www.linkedin.com/in/patrickalphac/)** and everyone at Cyfrin for their continuous efforts in educating and empowering Web3 developers.  
+>
+> This repo would not exist without their open-source contributions and educational guidance.
