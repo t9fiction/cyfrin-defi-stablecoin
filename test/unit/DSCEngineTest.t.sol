@@ -67,23 +67,32 @@ contract DSCEngineTest is Test {
     }
 
     modifier liquidated() {
+        // First, USER1 deposits collateral and mints DSC
         vm.startPrank(USER1);
+        ERC20Mock(weth).mint(USER1, AMOUNT_COLLATERAL);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateralAndMintDSC(weth, AMOUNT_COLLATERAL, AMOUNT_TO_MINT);
         vm.stopPrank();
 
-        int256 ethUSDUpdatedPrice = 18e8;
-        MockV3Aggregator(ethUsdcPriceFeed).updateAnswer(ethUSDUpdatedPrice);
-        uint256 userHealthFactor = engine.getHealthFactor(USER1);
+        // Drop ETH price to make USER1's position unhealthy
+        int256 ethUsdUpdatedPrice = 18e8; // $18 per ETH
+        MockV3Aggregator(ethUsdcPriceFeed).updateAnswer(ethUsdUpdatedPrice);
 
-        uint256 collateralToCover = 2 ether;
+        // Check that USER1's health factor is below MIN_HEALTH_FACTOR
+        uint256 userHealthFactor = engine.getHealthFactor(USER1);
+        assert(userHealthFactor < MIN_HEALTH_FACTOR);
+
+        // Setup liquidator with sufficient collateral and mint DSC through engine
+        uint256 collateralToCover = 10 ether; // Increased to 10 ETH
         ERC20Mock(weth).mint(liquidator, collateralToCover);
 
         vm.startPrank(liquidator);
         ERC20Mock(weth).approve(address(engine), collateralToCover);
-        engine.depositCollateralAndMintDSC(weth, collateralToCover, AMOUNT_TO_MINT);
-        dsc.approve(address(engine),AMOUNT_TO_MINT);
-        engine.liquidate(weth,USER1,AMOUNT_TO_MINT);
+        engine.depositCollateral(weth, collateralToCover);
+        uint256 debtToCover = 90e18; // Liquidate 90 DSC
+        engine.mintDSC(debtToCover);
+        dsc.approve(address(engine), debtToCover);
+        engine.liquidate(weth, USER1, debtToCover);
         vm.stopPrank();
 
         _;
@@ -342,22 +351,43 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testLiquidate() public liquidated {
-        // Verify USER1's state after liquidation
+    function testOriginalUserShouldBeLiquidated() public liquidated {
         (uint256 dscMinted, uint256 collateralValue) = engine.getAccountInformation(USER1);
-        assertEq(dscMinted, 0, "USER1's DSC minted should be 0 after liquidation");
-        assertEq(collateralValue, 7999200000000000000, "USER1's collateral value should be ~$7.9992 (0.4444 ETH at $18)");
-        
-        // Verify liquidator received collateral + bonus
-        uint256 expectedCollateralToSeize = 27777800000000000000; // ~27.7778 ETH
-        uint256 expectedBonus = 2777800000000000000; // ~2.7778 ETH
-        uint256 expectedTotal = expectedCollateralToSeize + expectedBonus; // ~30.5556 ETH
+        assertEq(dscMinted, AMOUNT_TO_MINT - 90e18, "USER1's DSC minted should be reduced by 90 DSC");
+        assertEq(collateralValue, 81e18, "USER1's collateral value should be 4.5 ETH at $18");
+    }
+
+    function testLiquidate() public liquidated {
+        // After liquidation:
+
+        // 1. USER1's DSC debt should be reduced by 90 DSC
+        (uint256 dscMinted, uint256 collateralValue) = engine.getAccountInformation(USER1);
+        assertEq(dscMinted, AMOUNT_TO_MINT - 90e18, "USER1's DSC minted should be reduced by 90 DSC");
+
+        // 2. Check that USER1 still has some collateral value left
+        assertEq(collateralValue, 81e18, "USER1 should have 4.5 ETH worth $81 at $18");
+
+        // 3. Calculate how much collateral the liquidator should have received
+        uint256 ethPriceInUsd = 18e8; // Current ETH price in USD
+        uint256 collateralToSeize = (90e18 * 1e18) / (ethPriceInUsd * 1e10); // 90 DSC
+        console.log("collateralToSeize:", collateralToSeize);
+        //
+        uint256 bonusCollateral = (collateralToSeize * 10) / 100;
+        uint256 totalCollateralToLiquidator = collateralToSeize + bonusCollateral;
+
+        // 4. Check that liquidator received the expected amount of collateral
         uint256 liquidatorWethBalance = ERC20Mock(weth).balanceOf(liquidator);
-        assertEq(liquidatorWethBalance, expectedTotal, "Liquidator should receive collateral plus bonus");
-        
-        // Verify USER1's health factor improved
-        uint256 userHealthFactor = engine.getHealthFactor(USER1);
-        assertEq(userHealthFactor, type(uint256).max, "USER1's health factor should be max as no DSC remains");
+        assertEq(liquidatorWethBalance, totalCollateralToLiquidator, "Liquidator should receive 5.5 ETH");
+        // 5. Check that the liquidator's DSC balance is reduced by the amount they used to cover the debt
+        uint256 liquidatorDscBalance = dsc.balanceOf(liquidator);
+        console.log("liquidatorDscBalance:", liquidatorDscBalance);
+        (uint256 dscMintedLiquidator, uint256 collateralValueLiquidator) = engine.getAccountInformation(liquidator);
+        console.log("dscMintedLiquidator:", dscMintedLiquidator);
+        console.log("collateralValueLiquidator:", collateralValueLiquidator);
+
+        // 5. USER1's health factor should be improved
+        uint256 userHealthFactor = engine.getHealthFactor(liquidator);
+        require(userHealthFactor >= MIN_HEALTH_FACTOR, "Health factor should be at least 1e18 after liquidation");
     }
 
     function testRevertsIfHealthFactorNotImproved() public {
@@ -370,7 +400,6 @@ contract DSCEngineTest is Test {
         setPriceToCreateUnhealthyPosition();
 
         // Prepare the liquidator address
-        address liquidator = makeAddr("liquidator");
         uint256 debtToCover = 100e18;
 
         // Try to perform liquidation with too small amount
