@@ -1,6 +1,9 @@
+
 # USD Stablecoin
 
 A decentralized, algorithmic stablecoin pegged to the US Dollar (USD), backed by exogenous crypto assets.
+
+> 📣 **Built with ❤️ using [Cyfrin's Updraft Program](https://www.cyfrin.io/updraft)** | 🙏 Thanks to [Patrick Collins](https://www.linkedin.com/in/patrickalphac/)
 
 ## Overview
 
@@ -163,7 +166,7 @@ forge script script/DeployDSC.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KE
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🚀 Credits & Attribution
+## 🚀 Credits & Attribution (Cyfrin + Patrick Collins + Team)
 
 > ⚠️ This project is heavily inspired by the excellent work of **Patrick Collins** and his team at **Cyfrin** through their DeFi course and the **[Updraft Accelerator Program](https://www.cyfrin.io/updraft)**.  
 >
