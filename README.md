@@ -1,18 +1,18 @@
-# PKR Stablecoin
+# USD Stablecoin
 
-A decentralized, algorithmic stablecoin pegged to the Pakistani Rupee (PKR), backed by exogenous crypto assets.
+A decentralized, algorithmic stablecoin pegged to the US Dollar (USD), backed by exogenous crypto assets.
 
 ## Overview
 
-PKR Stablecoin is designed with three key principles:
+USD Stablecoin is designed with three key principles:
 
-1. **Anchored/Pegged to PKR**
-   - Utilizes Chainlink price feeds to maintain the PKR value
-   - Functions for exchanging ETH & BTC collateral to mint PKR tokens
+1. **Anchored/Pegged to USD**
+   - Utilizes Chainlink price feeds to maintain the USD value
+   - Functions for exchanging ETH & BTC collateral to mint USD tokens
 
 2. **Algorithmic Decentralized Stability Mechanism**
    - Maintains stability through overcollateralization
-   - Users can only mint PKR with sufficient collateral
+   - Users can only mint USD with sufficient collateral
    - Implements a 50% liquidation threshold
    - 10% liquidation bonus incentivizes external liquidators
 
@@ -24,20 +24,20 @@ PKR Stablecoin is designed with three key principles:
 ## Smart Contract Architecture
 
 ### DecentralizedStableCoin.sol
-- ERC20 token implementation for the PKR stablecoin
+- ERC20 token implementation for the USD stablecoin
 - Implements minting and burning functionality
 - Controlled by the DSCEngine contract
 
 ### DSCEngine.sol
 - Core contract managing the business logic
 - Handles collateral deposits and redemptions
-- Controls minting and burning of PKR tokens
+- Controls minting and burning of USD tokens
 - Implements health factor calculations and liquidations
 - Utilizes Chainlink price feeds for collateral valuation
 
 ## Features
 
-- **Overcollateralized Positions**: All PKR minting requires overcollateralization
+- **Overcollateralized Positions**: All USD minting requires overcollateralization
 - **Liquidation System**: Positions that fall below health factor thresholds can be liquidated
 - **Multi-Collateral Support**: Deposit and use multiple types of collateral
 - **No Governance**: No governance controls or admin keys (fully algorithmic)
@@ -95,16 +95,16 @@ Users can deposit wBTC or wETH as collateral:
 // Deposit collateral
 dscEngine.depositCollateral(tokenAddress, amountCollateral);
 
-// Deposit collateral and mint PKR in one transaction
+// Deposit collateral and mint USD in one transaction
 dscEngine.depositCollateralAndMintDSC(tokenAddress, amountCollateral, amountToMint);
 ```
 
-### Minting PKR
+### Minting USD
 
-Once collateral is deposited, users can mint PKR tokens:
+Once collateral is deposited, users can mint USD tokens:
 
 ```solidity
-// Mint PKR (requires sufficient collateral)
+// Mint USD (requires sufficient collateral)
 dscEngine.mintDSC(amountToMint);
 ```
 
@@ -116,16 +116,16 @@ Users can redeem their collateral:
 // Redeem collateral
 dscEngine.redeemCollateral(tokenAddress, amountCollateral);
 
-// Burn PKR and redeem collateral in one transaction
+// Burn USD and redeem collateral in one transaction
 dscEngine.redeemCollateralForDSC(tokenAddress, amountCollateral, amountToBurn);
 ```
 
-### Burning PKR
+### Burning USD
 
-Users can burn their PKR tokens:
+Users can burn their USD tokens:
 
 ```solidity
-// Burn PKR
+// Burn USD
 dscEngine.burnDSC(amountToBurn);
 ```
 
